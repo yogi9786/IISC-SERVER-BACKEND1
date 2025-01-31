@@ -1,19 +1,25 @@
-from fastapi import FastAPI, APIRouter
+import os
+from fastapi import FastAPI, Request
 import redis
-from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+from routes.route import router  # ✅ Importing router correctly
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+
 
 app = FastAPI()
-
-# App Setup
-router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
 # Connect to Redis server
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 # Register routes
-router.include_router(router, prefix="/router", tags=["Todos"])
+app.include_router(router, prefix="/api", tags=["API"])
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
 # Root endpoint
-@router.get("/", tags=["Root"])
-async def read_root():
-    return {"message": "IISC"}
+@app.get("/", response_class=HTMLResponse, tags=["Root"])
+async def read_root(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})

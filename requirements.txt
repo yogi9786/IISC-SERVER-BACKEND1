@@ -10,8 +10,9 @@ email-validator
 pymongo[srv]
 redis
 PyJWT
-routes
 tokenizers
 transformers
 pillow
 pymongo
+bcrypt
+jinga2
