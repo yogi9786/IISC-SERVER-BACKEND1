@@ -25,9 +25,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 oauth = OAuth()
 oauth.register(
     name="google",
-    client_id="474230928320-d76ijvbhg1pqulgi8gngo9278rrct960.apps.googleusercontent.com",
+    client_id="client_id",
     client_secret="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",
-    authorize_url="https://accounts.google.com/o/oauth2/auth",
+    authorize_url="client_secret",
     access_token_url="https://oauth2.googleapis.com/token",
     client_kwargs={"scope": "openid email profile"},
     redirect_uri="http://localhost:8000/auth",  # Check this line
