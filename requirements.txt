@@ -16,3 +16,8 @@ pillow
 pymongo
 bcrypt
 jinga2
+authlib
+python-dotenv 
+httpx
+asyncio
+motor

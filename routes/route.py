@@ -6,7 +6,7 @@ import jwt
 from datetime import datetime, timedelta
 from typing import List, Optional
 import re
-from config.database import db  # ✅ Ensure database connection is correct
+from config.database import db 
 from schema.schemas import UserCreateSchema, UserLoginSchema, TodoSchema, UpdateTodoSchema, ContactFormSchema
 
 router = APIRouter()
@@ -139,3 +139,5 @@ async def get_contact_forms():
         {"id": str(contact["_id"]), "name": contact["name"], "email": contact["email"], "message": contact["message"]}
         for contact in contacts_collection.find()
     ]
+
+
