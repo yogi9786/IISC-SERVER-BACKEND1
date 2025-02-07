@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, FastAPI, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel, EmailStr, Field
 from passlib.context import CryptContext
 from bson import ObjectId
@@ -6,8 +6,11 @@ import jwt
 from datetime import datetime, timedelta
 from typing import List, Optional
 import re
+
+import uvicorn
 from config.database import db 
 from schema.schemas import UserCreateSchema, UserLoginSchema, TodoSchema, UpdateTodoSchema, ContactFormSchema
+from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
 
@@ -15,6 +18,9 @@ router = APIRouter()
 todos_collection = db["todos"]
 users_collection = db["users"]
 contacts_collection = db["contacts"]
+tokens_collection = db["tokens"]
+
+app = FastAPI()
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -52,19 +58,17 @@ def todo_helper(todo) -> dict:
         "message": todo.get("message", "")
     }
 
-# ✅ Register User
 @router.post("/register")
 async def register_user(user: UserCreateSchema):
     if users_collection.find_one({"email": user.email}):
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user_data = user.dict()
+    user_data = user.model_dump()
     user_data["password"] = hash_password(user.password)
     result = users_collection.insert_one(user_data)
 
     return {"message": "User registered successfully", "id": str(result.inserted_id)}
 
-# ✅ Login User
 @router.post("/login")
 async def login_user(user: UserLoginSchema):
     db_user = users_collection.find_one({"email": user.email})
@@ -74,14 +78,12 @@ async def login_user(user: UserLoginSchema):
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ✅ Get Current User
 def get_current_user(token: str = Depends(verify_token)):
     email = token.get("sub")
     if email is None:
         raise HTTPException(status_code=401, detail="Invalid token")
     return email
 
-# ✅ Todo Routes
 @router.post("/todos/")
 async def create_todo(todo: TodoSchema):
     new_todo = todo.dict()
@@ -121,7 +123,6 @@ async def delete_todo(id: str):
     
     raise HTTPException(status_code=404, detail="Todo not found")
 
-# ✅ Contact Form Submission
 @router.post("/contacts/")
 async def submit_contact_form(contact_form: ContactFormSchema):
     result = contacts_collection.insert_one(contact_form.dict())
@@ -139,5 +140,9 @@ async def get_contact_forms():
         {"id": str(contact["_id"]), "name": contact["name"], "email": contact["email"], "message": contact["message"]}
         for contact in contacts_collection.find()
     ]
+
+if __name__ == "__main__":
+    uvicorn.run(router, host="0.0.0.0", port=8000)
+
 
 

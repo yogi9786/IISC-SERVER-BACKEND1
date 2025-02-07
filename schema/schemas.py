@@ -1,8 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 
-
-
 # Define the Pydantic model for user registration and login
 class UserCreateSchema(BaseModel):
     username: str
