@@ -1,4 +1,5 @@
-from fastapi import APIRouter, FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, Body, FastAPI, HTTPException, Depends, Request, UploadFile, File
+import openai
 from pydantic import BaseModel, EmailStr, Field
 from passlib.context import CryptContext
 from bson import ObjectId
@@ -12,25 +13,40 @@ from config.database import db
 from schema.schemas import UserCreateSchema, UserLoginSchema, TodoSchema, UpdateTodoSchema, ContactFormSchema
 from fastapi.templating import Jinja2Templates
 
-router = APIRouter()
+
+router = APIRouter() 
 
 # MongoDB collections
 todos_collection = db["todos"]
 users_collection = db["users"]
 contacts_collection = db["contacts"]
 tokens_collection = db["tokens"]
+products_collection = db["products"]
 
-app = FastAPI()
 
-# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT settings
+
+# Set your OpenAI API key
+openai.api_key = "your_openai_api_key"
+
+
+
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Helper functions
+
+    
+def validate_passwords(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+
+def model_dump(self):
+        self.validate_passwords()
+        return super().dict(exclude={"confirm_password"})  # Exclude confirm_password from storage
+
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -46,10 +62,17 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def verify_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except jwt.PyJWTError:
+        return payload  # This should contain user data if valid
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# Ensure verify_token is defined BEFORE get_current_user
+def get_current_user(token: str = Depends(verify_token)):
+    return token  # You can modify this to return user data
+
+# Define the todo_helper function before using it
 def todo_helper(todo) -> dict:
     return {
         "id": str(todo["_id"]),
@@ -58,16 +81,37 @@ def todo_helper(todo) -> dict:
         "message": todo.get("message", "")
     }
 
+
+# Register Route
 @router.post("/register")
-async def register_user(user: UserCreateSchema):
-    if users_collection.find_one({"email": user.email}):
-        raise HTTPException(status_code=400, detail="Email already registered")
+async def register_user(user: UserCreateSchema = Body(...), request: Request = None):
+    try:
+        # Debugging: Print raw request data
+        if request:
+            raw_body = await request.body()
+            print("Raw Request Body:", raw_body.decode("utf-8"))
 
-    user_data = user.model_dump()
-    user_data["password"] = hash_password(user.password)
-    result = users_collection.insert_one(user_data)
+        print("Received user data:", user.model_dump())  # Debugging
 
-    return {"message": "User registered successfully", "id": str(result.inserted_id)}
+        # Check if email is already registered
+        if users_collection.find_one({"email": user.email}):
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+        # Convert to dict and hash the password
+        user_data = user.model_dump()
+        user_data["password"] = hash_password(user.password)
+
+        # Insert into MongoDB
+        result = users_collection.insert_one(user_data)
+
+        return {"message": "User registered successfully", "id": str(result.inserted_id)}
+
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+    except Exception as e:
+        print("Error:", str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/login")
 async def login_user(user: UserLoginSchema):
@@ -142,7 +186,7 @@ async def get_contact_forms():
     ]
 
 if __name__ == "__main__":
-    uvicorn.run(router, host="0.0.0.0", port=8000)
+    uvicorn.run(router, host="localhost", port=8000)
 
 
 

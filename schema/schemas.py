@@ -1,11 +1,12 @@
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 
-# Define the Pydantic model for user registration and login
+# User Schema
 class UserCreateSchema(BaseModel):
-    username: str
+    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6)
+    confirm_password: str = Field(..., min_length=6)
 
 class UserLoginSchema(BaseModel):
     email: EmailStr
@@ -45,6 +46,20 @@ class TodoSchema(BaseModel):
     name: str
     description: str
     message: str
+    
+# Request model
+class ChatRequest(BaseModel):
+    message: str
+
+
+# Product Model
+class Product(BaseModel):
+    name: str
+    description: str
+    price: float
+    category: str
+    stock: int
+    image_url: Optional[str] = None
 
     class Config:
         json_schema_extra = {
