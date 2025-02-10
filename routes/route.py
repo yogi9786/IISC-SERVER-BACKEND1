@@ -186,7 +186,7 @@ async def get_contact_forms():
     ]
 
 if __name__ == "__main__":
-    uvicorn.run(router, host="localhost", port=8000)
+    uvicorn.run(router, host="0.0.0.0", port=8000)
 
 
 
